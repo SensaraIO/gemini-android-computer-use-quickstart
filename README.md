@@ -7,7 +7,7 @@ This repository contains a reference implementation for controlling an Android e
 The agent operates in a continuous loop:
 1. It captures a screenshot of the virtual device using ADB.
 2. It sends the screenshot along with the user's task to Gemini 3.5 Flash.
-3. The model returns structured tool commands (such as `click`, `type`, `long_press`, `drag_and_drop`, `press_key`, `go_back`, `wait`, `list_apps`, `open_app`, `take_screenshot`).
+3. The model returns structured tool commands (such as `click`, `type`, `long_press`, `drag_and_drop`, `press_key`, `go_back`, gwait`, `list_apps`, `open_app`, `take_screenshot`).
 4. The client executing script maps the normalized coordinates (0-999) to the actual physical resolution of the screen and executes the action via ADB.
 5. The loop repeats until the task is complete.
 
@@ -16,7 +16,6 @@ The agent operates in a continuous loop:
 *   `agent.py`: The main agent script orchestrating the interaction loop.
 *   `setup_emulator.sh`: Idempotent shell script to configure and create the Android virtual device (`AI_Agent_Phone`) on macOS.
 *   `requirements.txt`: Python package dependencies.
-*   `run.sh`: Convenient entrypoint script to create virtualenv, install dependencies, and run the agent.
 
 ## Setup Instructions
 
@@ -45,22 +44,25 @@ export GEMINI_API_KEY="your-api-key-here"
 
 ### 3. Run the Agent
 
-You can launch the agent by executing `run.sh`:
+Create a virtual environment and install the required dependencies:
 
 ```bash
-chmod +x run.sh
-./run.sh
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
 ```
 
-By default, the script runs the task: *"Find the latest blog post from philipp schmid and summarize it."*
-Alternatively, you can run the agent manually:
+Then run the agent:
+
+```bash
+python agent.py "Find the latest blog post from philipp schmid and summarize it."
+```
+
+Alternatively, you can run the agent with a custom task:
 
 ```bash
 python agent.py "Open Settings and enable dark mode"
 ```
-
----
-
 
 ## Licensing & Disclaimer
 

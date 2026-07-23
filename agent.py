@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import base64
 import json
 import os
@@ -176,6 +177,7 @@ class ADBBridge:
         return result.stdout
 
 
+
 SYSTEM_PROMPT = """You are operating an Android phone.
 * Use the provided tools to complete the task.
 * Scroll down to inspect the full screen before assuming an element is missing.
@@ -185,12 +187,20 @@ SYSTEM_PROMPT = """You are operating an Android phone.
 """
 
 
-def run_agent(task: str, device_id: str = None, max_turns: int = 100):
+def run_agent(
+    task: str,
+    device_id: str = None,
+    model: str = "gemini-3.6-flash",
+    thinking_level: str = "medium",
+    max_turns: int = 100,
+):
     start_emulator()
     client = genai.Client()
     bridge = ADBBridge(device_id)
 
     print(f"\nTask: {task}")
+    print(f"Model: {model}")
+    print(f"Thinking Level: {thinking_level}")
     print("-" * 40)
 
     screenshot_bytes = bridge.screenshot()
@@ -202,21 +212,22 @@ def run_agent(task: str, device_id: str = None, max_turns: int = 100):
             "mime_type": "image/png",
         },
     ]
-    
+
     previous_interaction_id = None
     turn = 0
-    
+
     while turn < max_turns:
         turn += 1
-        
+
         interaction = client.interactions.create(
-            model="gemini-3.5-flash",
+            model=model,
             system_instruction=SYSTEM_PROMPT,
             input=user_input,
             tools=[{"type": "computer_use", "environment": "mobile"}],
+            generation_config={"thinking_config": {"thinking_level": thinking_level}},
             previous_interaction_id=previous_interaction_id,
         )
-        
+
         has_function_calls = any(
             step.type == "function_call"
             for step in interaction.steps
@@ -281,7 +292,40 @@ def run_agent(task: str, device_id: str = None, max_turns: int = 100):
 
 
 if __name__ == "__main__":
-    task_desc = "Find the latest blog post from philipp schmid and summarize it."
-    if len(sys.argv) > 1:
-        task_desc = " ".join(sys.argv[1:])
-    run_agent(task_desc)
+    parser = argparse.ArgumentParser(description="Run Android Computer Use AI Agent")
+    parser.add_argument(
+        "--model",
+        "-m",
+        default="gemini-3.6-flash",
+        help="Gemini model ID to use (default: gemini-3.6-flash)",
+    )
+    parser.add_argument(
+        "--thinking-level",
+        "-t",
+        default="medium",
+        help="Thinking level for generation config (default: medium)",
+    )
+    parser.add_argument(
+        "--device-id",
+        "-d",
+        default=None,
+        help="ADB device ID (optional)",
+    )
+    parser.add_argument(
+        "task",
+        nargs="*",
+        help="Task description for the agent",
+    )
+
+    args = parser.parse_args()
+    task_desc = (
+        " ".join(args.task)
+        if args.task
+        else "Find the latest blog post from philipp schmid and summarize it."
+    )
+    run_agent(
+        task=task_desc,
+        device_id=args.device_id,
+        model=args.model,
+        thinking_level=args.thinking_level,
+    )

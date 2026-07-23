@@ -1,13 +1,13 @@
 # Gemini Android Computer Use Demo
 
-This repository contains a reference implementation for controlling an Android emulator using the **Gemini 3.5 Flash** Computer Use API (`mobile` environment) via the Google GenAI SDK.
+This repository contains a reference implementation for controlling an Android emulator using the **Gemini 3.6 Flash** Computer Use API (`mobile` environment) via the Google GenAI SDK.
 
 ## Overview
 
 The agent operates in a continuous loop:
 1. It captures a screenshot of the virtual device using ADB.
-2. It sends the screenshot along with the user's task to Gemini 3.5 Flash.
-3. The model returns structured tool commands (such as `click`, `type`, `long_press`, `drag_and_drop`, `press_key`, `go_back`, gwait`, `list_apps`, `open_app`, `take_screenshot`).
+2. It sends the screenshot along with the user's task to Gemini 3.6 Flash.
+3. The model returns structured tool commands (such as `click`, `type`, `long_press`, `drag_and_drop`, `press_key`, `go_back`, `wait`, `list_apps`, `open_app`, `take_screenshot`).
 4. The client executing script maps the normalized coordinates (0-999) to the actual physical resolution of the screen and executes the action via ADB.
 5. The loop repeats until the task is complete.
 
@@ -58,11 +58,33 @@ Then run the agent:
 python agent.py "Find the latest blog post from philipp schmid and summarize it."
 ```
 
-Alternatively, you can run the agent with a custom task:
+### Command-Line Options
+
+`agent.py` supports several CLI arguments:
+
+| Option | Short | Default | Description |
+| --- | --- | --- | --- |
+| `--model` | `-m` | `gemini-3.6-flash` | Gemini model ID to use |
+| `--thinking-level` | `-t` | `medium` | Thinking level configuration (`minimal`, `low`, `medium`, `high`) |
+| `task` | N/A | *(default prompt)* | Task description for the agent |
+
+Examples:
 
 ```bash
-python agent.py "Open Settings and enable dark mode"
+# Specify a different model ID
+python agent.py --model gemini-3.5-flash-lite "Open Settings and enable dark mode"
+
+# Adjust thinking level
+python agent.py --thinking-level high "Open Clock and set an alarm for 7 AM"
 ```
+
+### Supported Models
+
+The following Gemini models are supported for computer use:
+
+* `gemini-3.6-flash` (default)
+* `gemini-3.5-flash-lite`
+* `gemini-3.5-flash`
 
 ## Licensing & Disclaimer
 

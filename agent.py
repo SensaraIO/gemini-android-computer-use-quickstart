@@ -189,13 +189,14 @@ SYSTEM_PROMPT = """You are operating an Android phone.
 
 def run_agent(
     task: str,
+    device_id: str = None,
     model: str = "gemini-3.6-flash",
     thinking_level: str = "medium",
     max_turns: int = 100,
 ):
     start_emulator()
     client = genai.Client()
-    bridge = ADBBridge()
+    bridge = ADBBridge(device_id)
 
     print(f"\nTask: {task}")
     print(f"Model: {model}")
@@ -217,49 +218,16 @@ def run_agent(
 
     while turn < max_turns:
         turn += 1
-        print(f"\n==================== TURN {turn} ====================")
-        print(f"[Turn {turn}] Sending interaction request (previous_id: {previous_interaction_id})")
 
-        try:
-            interaction = client.interactions.create(
-                model=model,
-                system_instruction=SYSTEM_PROMPT,
-                input=user_input,
-                tools=[{"type": "computer_use", "environment": "mobile"}],
-                generation_config={"thinking_config": {"thinking_level": thinking_level}},
-                previous_interaction_id=previous_interaction_id,
-            )
-        except Exception as e:
-            print(f"\n" + "!" * 60)
-            print(f"[INTERACTION API ERROR] Exception Type: {type(e).__module__}.{type(e).__name__}")
-            print(f"[Error Message]: {e}")
-            
-            # Extract raw response or metadata from SDK exception
-            for attr in ["http_res_text", "response_data", "message", "body", "args"]:
-                val = getattr(e, attr, None)
-                if val:
-                    print(f"\n--- Exception.{attr} ---")
-                    print(val)
-            
-            # Inspect underlying cause if wrapped
-            cause = getattr(e, "__cause__", None)
-            if cause:
-                print(f"\n--- Underlying Cause: {type(cause).__name__} ---")
-                print(f"Cause message: {cause}")
-                for attr in ["http_res_text", "response_data", "body"]:
-                    val = getattr(cause, attr, None)
-                    if val:
-                        print(f"--- Cause.{attr} ---")
-                        print(val)
-            print("!" * 60 + "\n")
-            raise
+        interaction = client.interactions.create(
+            model=model,
+            system_instruction=SYSTEM_PROMPT,
+            input=user_input,
+            tools=[{"type": "computer_use", "environment": "mobile"}],
+            generation_config={"thinking_config": {"thinking_level": thinking_level}},
+            previous_interaction_id=previous_interaction_id,
+        )
 
-        print(f"[Turn {turn} Response] interaction_id: {interaction.id}, status: {interaction.status}")
-        print(f"[Turn {turn} Steps]: {len(interaction.steps)} step(s)")
-        for idx, step in enumerate(interaction.steps, 1):
-            step_type = getattr(step, "type", type(step).__name__)
-            print(f"  Step {idx} [{step_type}]: {step}")
-        
         has_function_calls = any(
             step.type == "function_call"
             for step in interaction.steps
@@ -338,6 +306,12 @@ if __name__ == "__main__":
         help="Thinking level for generation config (default: medium)",
     )
     parser.add_argument(
+        "--device-id",
+        "-d",
+        default=None,
+        help="ADB device ID (optional)",
+    )
+    parser.add_argument(
         "task",
         nargs="*",
         help="Task description for the agent",
@@ -351,6 +325,7 @@ if __name__ == "__main__":
     )
     run_agent(
         task=task_desc,
+        device_id=args.device_id,
         model=args.model,
         thinking_level=args.thinking_level,
     )

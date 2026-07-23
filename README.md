@@ -76,6 +76,7 @@ python agent.py --model gemini-3.5-flash-lite "Open Settings and enable dark mod
 
 # Adjust thinking level
 python agent.py --thinking-level high "Open Clock and set an alarm for 7 AM"
+```
 
 ### Supported Models
 

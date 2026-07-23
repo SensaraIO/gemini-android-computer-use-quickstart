@@ -75,7 +75,7 @@ Examples:
 python agent.py "Find the latest blog post from philipp schmid and summarize it."
 
 # Specify a different model ID
-python agent.py --model gemini-3.5-flas-lite "Open Settings and enable dark mode"
+python agent.py --model gemini-3.5-flash-lite "Open Settings and enable dark mode"
 
 # Adjust thinking level
 python agent.py --thinking-level high "Open Clock and set an alarm for 7 AM"

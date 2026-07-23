@@ -52,7 +52,7 @@ source .venv/bin/activate
 uv pip install -r requirements.txt
 ```
 
-Then run the agent with a default or custom task:
+Then run the agent:
 
 ```bash
 python agent.py "Find the latest blog post from philipp schmid and summarize it."
@@ -71,9 +71,6 @@ python agent.py "Find the latest blog post from philipp schmid and summarize it.
 Examples:
 
 ```bash
-# Run with a custom task
-python agent.py "Find the latest blog post from philipp schmid and summarize it."
-
 # Specify a different model ID
 python agent.py --model gemini-3.5-flash-lite "Open Settings and enable dark mode"
 

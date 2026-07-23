@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import argparse
 import base64
 import json
 import os
@@ -176,6 +177,7 @@ class ADBBridge:
         return result.stdout
 
 
+
 SYSTEM_PROMPT = """You are operating an Android phone.
 * Use the provided tools to complete the task.
 * Scroll down to inspect the full screen before assuming an element is missing.
@@ -185,12 +187,19 @@ SYSTEM_PROMPT = """You are operating an Android phone.
 """
 
 
-def run_agent(task: str, device_id: str = None, max_turns: int = 100):
+def run_agent(
+    task: str,
+    model: str = "gemini-3.6-flash",
+    thinking_level: str = "medium",
+    max_turns: int = 100,
+):
     start_emulator()
     client = genai.Client()
-    bridge = ADBBridge(device_id)
+    bridge = ADBBridge()
 
     print(f"\nTask: {task}")
+    print(f"Model: {model}")
+    print(f"Thinking Level: {thinking_level}")
     print("-" * 40)
 
     screenshot_bytes = bridge.screenshot()
@@ -202,20 +211,54 @@ def run_agent(task: str, device_id: str = None, max_turns: int = 100):
             "mime_type": "image/png",
         },
     ]
-    
+
     previous_interaction_id = None
     turn = 0
-    
+
     while turn < max_turns:
         turn += 1
-        
-        interaction = client.interactions.create(
-            model="gemini-3.5-flash",
-            system_instruction=SYSTEM_PROMPT,
-            input=user_input,
-            tools=[{"type": "computer_use", "environment": "mobile"}],
-            previous_interaction_id=previous_interaction_id,
-        )
+        print(f"\n==================== TURN {turn} ====================")
+        print(f"[Turn {turn}] Sending interaction request (previous_id: {previous_interaction_id})")
+
+        try:
+            interaction = client.interactions.create(
+                model=model,
+                system_instruction=SYSTEM_PROMPT,
+                input=user_input,
+                tools=[{"type": "computer_use", "environment": "mobile"}],
+                generation_config={"thinking_config": {"thinking_level": thinking_level}},
+                previous_interaction_id=previous_interaction_id,
+            )
+        except Exception as e:
+            print(f"\n" + "!" * 60)
+            print(f"[INTERACTION API ERROR] Exception Type: {type(e).__module__}.{type(e).__name__}")
+            print(f"[Error Message]: {e}")
+            
+            # Extract raw response or metadata from SDK exception
+            for attr in ["http_res_text", "response_data", "message", "body", "args"]:
+                val = getattr(e, attr, None)
+                if val:
+                    print(f"\n--- Exception.{attr} ---")
+                    print(val)
+            
+            # Inspect underlying cause if wrapped
+            cause = getattr(e, "__cause__", None)
+            if cause:
+                print(f"\n--- Underlying Cause: {type(cause).__name__} ---")
+                print(f"Cause message: {cause}")
+                for attr in ["http_res_text", "response_data", "body"]:
+                    val = getattr(cause, attr, None)
+                    if val:
+                        print(f"--- Cause.{attr} ---")
+                        print(val)
+            print("!" * 60 + "\n")
+            raise
+
+        print(f"[Turn {turn} Response] interaction_id: {interaction.id}, status: {interaction.status}")
+        print(f"[Turn {turn} Steps]: {len(interaction.steps)} step(s)")
+        for idx, step in enumerate(interaction.steps, 1):
+            step_type = getattr(step, "type", type(step).__name__)
+            print(f"  Step {idx} [{step_type}]: {step}")
         
         has_function_calls = any(
             step.type == "function_call"
@@ -281,7 +324,33 @@ def run_agent(task: str, device_id: str = None, max_turns: int = 100):
 
 
 if __name__ == "__main__":
-    task_desc = "Find the latest blog post from philipp schmid and summarize it."
-    if len(sys.argv) > 1:
-        task_desc = " ".join(sys.argv[1:])
-    run_agent(task_desc)
+    parser = argparse.ArgumentParser(description="Run Android Computer Use AI Agent")
+    parser.add_argument(
+        "--model",
+        "-m",
+        default="gemini-3.6-flash",
+        help="Gemini model ID to use (default: gemini-3.6-flash)",
+    )
+    parser.add_argument(
+        "--thinking-level",
+        "-t",
+        default="medium",
+        help="Thinking level for generation config (default: medium)",
+    )
+    parser.add_argument(
+        "task",
+        nargs="*",
+        help="Task description for the agent",
+    )
+
+    args = parser.parse_args()
+    task_desc = (
+        " ".join(args.task)
+        if args.task
+        else "Find the latest blog post from philipp schmid and summarize it."
+    )
+    run_agent(
+        task=task_desc,
+        model=args.model,
+        thinking_level=args.thinking_level,
+    )

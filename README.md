@@ -1,12 +1,12 @@
 # Gemini Android Computer Use Demo
 
-This repository contains a reference implementation for controlling an Android emulator using the **Gemini 3.6 Flash** Computer Use API (`mobile` environment) via the Google GenAI SDK.
+This repository contains a reference implementation for controlling an Android emulator using the **Gemini 3.7 Flash** Computer Use API (`mobile` environment) via the Google GenAI SDK.
 
 ## Overview
 
 The agent operates in a continuous loop:
 1. It captures a screenshot of the virtual device using ADB.
-2. It sends the screenshot along with the user's task to Gemini 3.6 Flash.
+2. It sends the screenshot along with the user's task to Gemini 3.7 Flash.
 3. The model returns structured tool commands (such as `click`, `type`, `long_press`, `drag_and_drop`, `press_key`, `go_back`, `wait`, `list_apps`, `open_app`, `take_screenshot`).
 4. The client executing script maps the normalized coordinates (0-999) to the actual physical resolution of the screen and executes the action via ADB.
 5. The loop repeats until the task is complete.
@@ -44,17 +44,18 @@ export GEMINI_API_KEY="your-api-key-here"
 
 ### 3. Run the Agent
 
-Create a virtual environment and install the required dependencies:
+You can run the script directly with `uv` (dependencies are resolved automatically via PEP 723 metadata):
+
+```bash
+uv run agent.py "Find the latest blog post from philipp schmid and summarize it."
+```
+
+Or using a virtual environment:
 
 ```bash
 uv venv
 source .venv/bin/activate
 uv pip install -r requirements.txt
-```
-
-Then run the agent:
-
-```bash
 python agent.py "Find the latest blog post from philipp schmid and summarize it."
 ```
 
@@ -64,7 +65,7 @@ python agent.py "Find the latest blog post from philipp schmid and summarize it.
 
 | Option | Short | Default | Description |
 | --- | --- | --- | --- |
-| `--model` | `-m` | `gemini-3.6-flash` | Gemini model ID to use |
+| `--model` | `-m` | `gemini-3.7-flash` | Gemini model ID to use |
 | `--thinking-level` | `-t` | `medium` | Thinking level configuration (`minimal`, `low`, `medium`, `high`) |
 | `task` | N/A | *(default prompt)* | Task description for the agent |
 
@@ -82,7 +83,8 @@ python agent.py --thinking-level high "Open Clock and set an alarm for 7 AM"
 
 The following Gemini models are supported for computer use:
 
-* `gemini-3.6-flash` (default)
+* `gemini-3.7-flash` (default)
+* `gemini-3.6-flash`
 * `gemini-3.5-flash-lite`
 * `gemini-3.5-flash`
 

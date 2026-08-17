@@ -11,6 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#     "google-genai",
+# ]
+# ///
 
 import argparse
 import base64
@@ -190,7 +196,7 @@ SYSTEM_PROMPT = """You are operating an Android phone.
 def run_agent(
     task: str,
     device_id: str = None,
-    model: str = "gemini-3.6-flash",
+    model: str = "gemini-3.7-flash",
     thinking_level: str = "medium",
     max_turns: int = 100,
 ):
@@ -218,75 +224,63 @@ def run_agent(
 
     while turn < max_turns:
         turn += 1
+        generation_config = {"thinking_level": thinking_level} if thinking_level else None
 
         interaction = client.interactions.create(
             model=model,
             system_instruction=SYSTEM_PROMPT,
             input=user_input,
             tools=[{"type": "computer_use", "environment": "mobile"}],
-            generation_config={"thinking_config": {"thinking_level": thinking_level}},
+            generation_config=generation_config,
             previous_interaction_id=previous_interaction_id,
         )
 
-        has_function_calls = any(
-            step.type == "function_call"
-            for step in interaction.steps
-        )
-        
-        if not has_function_calls:
-            text_response = " ".join([
-                content_block.text for step in interaction.steps if step.type == "model_output"
-                for content_block in step.content if content_block.type == "text"
-            ])
-            print("Agent finished:", text_response)
+        function_calls = [step for step in interaction.steps if step.type == "function_call"]
+        if not function_calls:
+            print("Agent finished:", interaction.output_text)
             break
-            
-        function_responses = []
-        for step in interaction.steps:
-            if step.type == "function_call":
-                print(f"[function_call] {step.name}({step.arguments})")
-                handler = getattr(bridge, step.name, None)
-                result_text = {"status": "ok"}
-                
-                if handler:
-                    try:
-                        res = handler(**step.arguments)
-                        if isinstance(res, dict):
-                            result_text.update(res)
-                    except Exception as e:
-                        result_text = {"status": "error", "error": str(e)}
-                else:
-                    result_text = {"status": "error", "error": f"Unknown action: {step.name}"}
-                    
-                print(f"[function_result] {result_text}")
-                
-                if "safety_decision" in step.arguments:
-                    # auto approve safety decisions for demo (legacy)
-                    result_text["safety_acknowledgement"] = True
 
-                screenshot_bytes = bridge.screenshot()
-                
-                fr = {
-                    "type": "function_result",
-                    "name": step.name,
-                    "call_id": step.id,
-                    "result": [
-                        {"type": "text", "text": json.dumps(result_text)},
-                        {
-                            "type": "image",
-                            "data": base64.b64encode(screenshot_bytes).decode(),
-                            "mime_type": "image/png",
-                        },
-                    ],
-                }
-                function_responses.append(fr)
-                time.sleep(0.5)
-                
+        function_responses = []
+        for fc in function_calls:
+            print(f"[function_call] {fc.name}({fc.arguments})")
+            handler = getattr(bridge, fc.name, None)
+            result_text = {"status": "ok"}
+
+            if handler:
+                try:
+                    res = handler(**fc.arguments)
+                    if isinstance(res, dict):
+                        result_text.update(res)
+                except Exception as e:
+                    result_text = {"status": "error", "error": str(e)}
+            else:
+                result_text = {"status": "error", "error": f"Unknown action: {fc.name}"}
+
+            print(f"[function_result] {result_text}")
+
+            if "safety_decision" in fc.arguments:
+                result_text["safety_acknowledgement"] = True
+
+            screenshot_bytes = bridge.screenshot()
+
+            fr = {
+                "type": "function_result",
+                "name": fc.name,
+                "call_id": fc.id,
+                "result": [
+                    {"type": "text", "text": json.dumps(result_text)},
+                    {
+                        "type": "image",
+                        "data": base64.b64encode(screenshot_bytes).decode(),
+                        "mime_type": "image/png",
+                    },
+                ],
+            }
+            function_responses.append(fr)
+            time.sleep(0.5)
+
         user_input = function_responses
         previous_interaction_id = interaction.id
-        
-        if not function_responses:
-            break
             
     return interaction
 
@@ -296,8 +290,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model",
         "-m",
-        default="gemini-3.6-flash",
-        help="Gemini model ID to use (default: gemini-3.6-flash)",
+        default="gemini-3.7-flash",
+        help="Gemini model ID to use (default: gemini-3.7-flash)",
     )
     parser.add_argument(
         "--thinking-level",

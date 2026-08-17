@@ -44,17 +44,18 @@ export GEMINI_API_KEY="your-api-key-here"
 
 ### 3. Run the Agent
 
-Create a virtual environment and install the required dependencies:
+You can run the script directly with `uv` (dependencies are resolved automatically via PEP 723 metadata):
+
+```bash
+uv run agent.py "Find the latest blog post from philipp schmid and summarize it."
+```
+
+Or using a virtual environment:
 
 ```bash
 uv venv
 source .venv/bin/activate
 uv pip install -r requirements.txt
-```
-
-Then run the agent:
-
-```bash
 python agent.py "Find the latest blog post from philipp schmid and summarize it."
 ```
 

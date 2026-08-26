@@ -1,1 +1,7 @@
-google-genai
+google-genai>=2.7.0
+Pillow>=10.0.0
+pyautogui>=0.9.54
+pyperclip>=1.9.0
+pyobjc-framework-ApplicationServices>=10.3; sys_platform == "darwin"
+pyobjc-framework-Cocoa>=10.3; sys_platform == "darwin"
+pyobjc-framework-Quartz>=10.3; sys_platform == "darwin"

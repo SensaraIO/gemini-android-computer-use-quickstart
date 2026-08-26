@@ -1,101 +1,98 @@
-# Gemini Android Computer Use Demo
+# Gemini Computer Use Agent
 
-This repository contains a reference implementation for controlling an Android emulator using the **Gemini 3.7 Flash** Computer Use API (`mobile` environment) via the Google GenAI SDK.
+This local version adds one Gemini 3.7 Flash CLI for all three Computer Use environments. It can control the Android emulator, the existing Google Chrome profile, or the live macOS desktop.
 
-## Overview
+`gemini-computer.py` has no separate control UI. Browser and desktop modes still require a logged-in graphical macOS session because the model acts from screenshots.
 
-The agent operates in a continuous loop:
-1. It captures a screenshot of the virtual device using ADB.
-2. It sends the screenshot along with the user's task to Gemini 3.7 Flash.
-3. The model returns structured tool commands (such as `click`, `type`, `long_press`, `drag_and_drop`, `press_key`, `go_back`, `wait`, `list_apps`, `open_app`, `take_screenshot`).
-4. The client executing script maps the normalized coordinates (0-999) to the actual physical resolution of the screen and executes the action via ADB.
-5. The loop repeats until the task is complete.
+## Setup
 
-## Directory Structure
+Requirements:
 
-*   `agent.py`: The main agent script orchestrating the interaction loop.
-*   `setup_emulator.sh`: Idempotent shell script to configure and create the Android virtual device (`AI_Agent_Phone`) on macOS.
-*   `requirements.txt`: Python package dependencies.
+* macOS for browser and desktop modes
+* `uv`
+* `GEMINI_API_KEY`
+* Accessibility and Screen Recording permission for the terminal or process that launches desktop and browser runs
+* Android SDK and the `AI_Agent_Phone` AVD for mobile mode
 
-## Setup Instructions
+Set the API key:
 
-### Prerequisites
+```bash
+export GEMINI_API_KEY="your-api-key-here"
+```
 
-Ensure you have the following installed on your Mac:
-*   [Homebrew](https://brew.sh/)
-*   [uv](https://docs.astral.sh/uv/) (highly recommended for Python dependency management)
-
-### 1. Configure the Virtual Device
-
-Run the setup script to install the Android CLI tools, system images, and create the `AI_Agent_Phone` emulator instance:
+For mobile mode, create the emulator once:
 
 ```bash
 chmod +x setup_emulator.sh
 ./setup_emulator.sh
 ```
 
-### 2. Set Up API Key
+The script uses PEP 723 metadata, so `uv` installs its Python packages automatically.
 
-Retrieve your API key from Google AI Studio and export it:
+## Usage
+
+Run one environment flag with a task:
 
 ```bash
-export GEMINI_API_KEY="your-api-key-here"
+./gemini-computer.py --mobile "Open Settings and enable dark mode"
+./gemini-computer.py --browser "Open the Gemini API docs and find the Computer Use model list"
+./gemini-computer.py --desktop "Open TextEdit and create a note titled Weekly Plan"
 ```
 
-### 3. Run the Agent
+Set the thinking level:
 
-You can run the script directly with `uv` (dependencies are resolved automatically via PEP 723 metadata):
+```bash
+./gemini-computer.py --desktop --thinking-level high "Organize the open Finder window"
+```
+
+Choose another macOS display. Display `0` is the main display:
+
+```bash
+./gemini-computer.py --desktop --display 1 "Open Calendar"
+```
+
+Check local dependencies and permissions without calling Gemini or controlling the UI:
+
+```bash
+./gemini-computer.py --desktop --check
+./gemini-computer.py --browser --check
+./gemini-computer.py --mobile --check
+```
+
+Other useful options:
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `--model`, `-m` | `gemini-3.7-flash` | Gemini model ID |
+| `--thinking-level`, `-t` | `medium` | `minimal`, `low`, `medium`, or `high` |
+| `--max-turns` | `100` | Maximum model/action turns |
+| `--device-id` | automatic | ADB device for mobile mode |
+| `--avd` | `AI_Agent_Phone` | AVD to boot for mobile mode |
+| `--display` | `0` | macOS display used for capture and coordinates |
+| `--browser-app` | `Google Chrome` | Existing macOS browser application to control |
+
+## Tool behavior
+
+The CLI implements every Gemini 3.x predefined action documented for its selected environment. It does not pass `excluded_predefined_functions`.
+
+Browser mode opens and controls the normal Google Chrome application and its current profile. Desktop mode controls the current macOS session. Neither mode creates a Playwright browser, browser profile, VM, or container.
+
+Prompt-injection detection is explicitly off. The request asks Gemini to disable all seven documented configurable Computer Use policies:
+
+* `financial_transactions`
+* `sensitive_data_modification`
+* `communication_tool`
+* `account_creation`
+* `data_modification`
+* `user_consent_management`
+* `legal_terms_and_agreements`
+
+Google notes that overrides are preferences. The service can still block an action or return `require_confirmation`. The CLI stops on blocked actions and asks for terminal confirmation when the API requires it. Non-interactive runs stop rather than claim a confirmation occurred.
+
+## Original mobile quickstart
+
+`agent.py` remains the original Android-only entry point:
 
 ```bash
 uv run agent.py "Find the latest blog post from philipp schmid and summarize it."
 ```
-
-Or using a virtual environment:
-
-```bash
-uv venv
-source .venv/bin/activate
-uv pip install -r requirements.txt
-python agent.py "Find the latest blog post from philipp schmid and summarize it."
-```
-
-### Command-Line Options
-
-`agent.py` supports several CLI arguments:
-
-| Option | Short | Default | Description |
-| --- | --- | --- | --- |
-| `--model` | `-m` | `gemini-3.7-flash` | Gemini model ID to use |
-| `--thinking-level` | `-t` | `medium` | Thinking level configuration (`minimal`, `low`, `medium`, `high`) |
-| `task` | N/A | *(default prompt)* | Task description for the agent |
-
-Examples:
-
-```bash
-# Specify a different model ID
-python agent.py --model gemini-3.5-flash-lite "Open Settings and enable dark mode"
-
-# Adjust thinking level
-python agent.py --thinking-level high "Open Clock and set an alarm for 7 AM"
-```
-
-### Supported Models
-
-The following Gemini models are supported for computer use:
-
-* `gemini-3.7-flash` (default)
-* `gemini-3.6-flash`
-* `gemini-3.5-flash-lite`
-* `gemini-3.5-flash`
-
-## Licensing & Disclaimer
-
-Copyright 2026 Google LLC  
-
-All software is licensed under the Apache License, Version 2.0 (Apache 2.0); you may not use this file except in compliance with the Apache 2.0 license. You may obtain a copy of the Apache 2.0 license at: [https://www.apache.org/licenses/LICENSE-2.0](https://www.apache.org/licenses/LICENSE-2.0)
-
-All other materials are licensed under the Creative Commons Attribution 4.0 International License (CC-BY). You may obtain a copy of the CC-BY license at: [https://creativecommons.org/licenses/by/4.0/legalcode](https://creativecommons.org/licenses/by/4.0/legalcode)
-
-Unless required by applicable law or agreed to in writing, all software and materials distributed here under the Apache 2.0 or CC-BY licenses are distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the licenses for the specific language governing permissions and limitations under those licenses.
-
-This is not an official Google product.
